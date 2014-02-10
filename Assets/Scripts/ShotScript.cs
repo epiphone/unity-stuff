@@ -8,13 +8,15 @@ public class ShotScript : MonoBehaviour {
 
     public int damage = 1;
     public float speed = 10;
-    
+
+    public AudioClip shotHitSound;
+
     /// <summary>
     /// Shot by an enemy?
     /// </summary>
     public bool isEnemyShot = false;
 
     void Start () {
-        Destroy(gameObject, 5);
+        Destroy(gameObject, 2);
 	}
 }

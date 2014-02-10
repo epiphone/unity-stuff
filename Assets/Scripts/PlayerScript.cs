@@ -6,7 +6,6 @@ using System.Collections;
 /// </summary>
 public class PlayerScript : MonoBehaviour
 {
-
     public float moveSpeed = 3;
     public float turnSpeed = 7;
     public float weaponTurnSpeed = 12;

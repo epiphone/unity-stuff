@@ -3,7 +3,6 @@ using System.Collections;
 
 public class MoveScript : MonoBehaviour
 {
-    [HideInInspector]
     public Vector2 direction = new Vector2(0, 0);
 
     void FixedUpdate()

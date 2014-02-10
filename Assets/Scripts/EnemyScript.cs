@@ -1,58 +1,130 @@
 ﻿using UnityEngine;
 using System.Collections;
 
+/// <summary>
+/// Primitive AI for enemies.
+/// </summary>
 public class EnemyScript : MonoBehaviour
 {
     public float chaseSpeed = 6f;
     public float idleSpeed = 3f;
     public float turnSpeed = 6f;
+    public int damageDone = 1;
 
     /// <summary>
-    /// Time waited after looking for player before looking again.
+    /// Seconds waited after looking for player before looking again.
     /// </summary>
     public float linecastInterval = 0.5f;
     public float linecastIntervalWhenChasing = 0.2f;
 
+    /// <summary>
+    /// Seconds waited after attacking before can attack again.
+    /// </summary>
+    public float attackCooldown = 1.0f;
+
+    public AudioClip hitPlayerSound;
+    public AudioClip deathSound;
+    public AudioClip startChasingSound;
+
     private MoveScript moveScript;
     private Transform player;
+    private Animator animator;
     private Vector3 playerLastSeenLocation;
+
     private bool canSeePlayer = false;
+    private bool canAttack = true;
+    private bool isIdle = true;
+    private bool hitWall = false;
 
     void Awake()
     {
         moveScript = GetComponent<MoveScript>();
         player = GameObject.Find("player").transform;
+        animator = GetComponent<Animator>();
     }
 
     void Start()
     {
+        animator.SetBool("isIdle", true);
         playerLastSeenLocation = transform.position;
         StartCoroutine(SeekPlayer());
     }
 
-    // Update is called once per frame
     void Update()
     {
-        if (canSeePlayer)
+        if (isIdle)
         {
-            moveScript.MoveTowards(player.position, chaseSpeed);
+
         }
         else
         {
-            if ((playerLastSeenLocation - transform.position).magnitude < 0.1f)
+            if (canSeePlayer) // Chasing player.
             {
-                moveScript.direction = Vector2.zero; // Player got away.
+                moveScript.MoveTowards(player.position, chaseSpeed);
+            }
+            else // Moving towards playerLastSeenLocation.
+            {
+                if ((playerLastSeenLocation - transform.position).magnitude < 0.1f) // Player got away.
+                {
+                    startIdle();
+                }
+                else
+                {
+                    moveScript.MoveTowards(playerLastSeenLocation, chaseSpeed);
+                }
+            }
+
+            var moveDirection = moveScript.direction;
+            if (moveDirection != Vector2.zero)
+            {
+                float targetAngle = Mathf.Atan2(moveDirection.y, moveDirection.x) * Mathf.Rad2Deg;
+                transform.rotation = Quaternion.Slerp(transform.rotation,
+                    Quaternion.Euler(0, 0, targetAngle), turnSpeed * Time.deltaTime);
             }
         }
+    }
 
-
-        var moveDirection = moveScript.direction;
-        if (moveDirection != Vector2.zero)
+    /// <summary>
+    /// Handle collision with player.
+    /// </summary>
+    void OnCollisionStay2D(Collision2D coll)
+    {
+        HealthScript health = coll.transform.GetComponentInChildren<HealthScript>();
+        if (health != null && health.isEnemy == false && canAttack)
         {
-            float targetAngle = Mathf.Atan2(moveDirection.y, moveDirection.x) * Mathf.Rad2Deg;
-            transform.rotation = Quaternion.Slerp(transform.rotation,
-                Quaternion.Euler(0, 0, targetAngle), turnSpeed * Time.deltaTime);
+            StartCoroutine(AttackPlayer(health));
         }
+    }
+
+    /// <summary>
+    /// Handle collision with walls.
+    /// </summary>
+    void OnCollisionEnter2D(Collision2D coll)
+    {
+        if (!hitWall && coll.gameObject.tag.ToLower() == "wall")
+        {
+            hitWall = true;
+        }
+    }
+
+    void OnCollisionExit2D(Collision2D coll)
+    {
+        if (hitWall && coll.gameObject.tag.ToLower() == "wall")
+        {
+            hitWall = false;
+        }
+    }
+
+    /// <summary>
+    /// Attack player, disable attacking for the duration of cooldown.
+    /// </summary>
+    IEnumerator AttackPlayer(HealthScript health)
+    {
+        AudioSource.PlayClipAtPoint(hitPlayerSound, transform.position);
+        health.Damage(damageDone);
+        canAttack = false;
+        yield return new WaitForSeconds(attackCooldown);
+        canAttack = true;
     }
 
     /// <summary>
@@ -64,13 +136,13 @@ public class EnemyScript : MonoBehaviour
         {
             playerLastSeenLocation = player.position;
             canSeePlayer = true;
+            if (isIdle)
+            {
+                stopIdle();
+            }
         }
         else
         {
-            if (playerLastSeenLocation != null)
-            {
-                moveScript.MoveTowards(playerLastSeenLocation, idleSpeed);
-            }
             canSeePlayer = false;
         }
 
@@ -79,4 +151,52 @@ public class EnemyScript : MonoBehaviour
 
         yield return StartCoroutine(SeekPlayer());
     }
+
+
+    #region IdleBehaviour
+
+    void startIdle()
+    {
+        Debug.Log("setting idle");
+        animator.SetBool("isIdle", true);
+        isIdle = true;
+        StartCoroutine("IdleBehaviour");
+    }
+
+    void stopIdle()
+    {
+        Debug.Log("stopping idle");
+        animator.SetBool("isIdle", false);
+        AudioSource.PlayClipAtPoint(startChasingSound, transform.position);
+        isIdle = false;
+        StopCoroutine("IdleBehaviour");
+    }
+
+    /// <summary>
+    /// Move in short random bursts.
+    /// </summary>
+    /// <returns></returns>
+    IEnumerator IdleBehaviour()
+    {
+        var direction = new Vector3(moveScript.direction.x, moveScript.direction.y, 0);
+        var target = transform.position + direction * 2;
+        moveScript.MoveTowards(target, idleSpeed);
+
+        while (true)
+        {
+            if (hitWall || (target - transform.position).magnitude < 0.2f)
+            {
+                float currAngle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+                float newAngle = Random.value * 180 + 90;
+                var rotation = Quaternion.FromToRotation(transform.position, target);
+
+
+                target = transform.position - direction * 2;
+                moveScript.MoveTowards(target, idleSpeed);
+            }
+            yield return null;
+        }
+    }
+
+    #endregion
 }

@@ -16,6 +16,8 @@ public class WeaponScript : MonoBehaviour
     /// </summary>
     public float shootingRate = 0.25f;
 
+    public AudioClip weaponSound;
+
     private float shootCooldown;
     private ParticleSystem shellParticle;
 
@@ -40,6 +42,8 @@ public class WeaponScript : MonoBehaviour
     {
         if (CanAttack)
         {
+            AudioSource.PlayClipAtPoint(weaponSound, transform.position);
+
             shootCooldown = shootingRate;
             var shot = (Transform)Instantiate(shotPrefab, transform.position, transform.rotation);
             shot.position = transform.position;
@@ -57,7 +61,7 @@ public class WeaponScript : MonoBehaviour
             }
 
             // Jolt weapon sprite and emit a shell casing
-            iTween.PunchPosition(gameObject, -0.2f * Vector3.right, 0.8f * shootingRate);
+            iTween.PunchPosition(gameObject, -0.2f * Vector3.right, 0.95f * shootingRate);
             shellParticle.Emit(1);
         }
     }

@@ -7,6 +7,7 @@ public class HealthScript : MonoBehaviour
     public int hp = 1;
     public bool isEnemy = true;
     public Transform healthBarPrefab;
+    public float healthBarYOffset = 0.2f;
 
     private int initialHp;
     private Transform healthBarInstance;
@@ -17,38 +18,50 @@ public class HealthScript : MonoBehaviour
 
         if (hp <= 0)
         {
+            if (isEnemy)
+            {
+                var enemy = transform.GetComponentInChildren<EnemyScript>();
+                if (enemy && enemy.deathSound)
+                {
+                    AudioSource.PlayClipAtPoint(enemy.deathSound, transform.position);   
+                }
+            }
             Destroy(gameObject);
         }
+        else if (healthBarPrefab && !healthBarInstance)
+        {
+            healthBarInstance = (Transform)Instantiate(healthBarPrefab);
+        }
+
+        UpdateHealthBar();
     }
 
+    /// <summary>
+    /// Reduce health when collided with a shot.
+    /// </summary>
+    /// <param name="other"></param>
     void OnTriggerEnter2D(Collider2D other)
     {
         ShotScript shot = other.gameObject.GetComponent<ShotScript>();
         if (shot != null && shot.isEnemyShot != isEnemy)
         {
+            AudioSource.PlayClipAtPoint(shot.shotHitSound, transform.position);
             Damage(shot.damage);
-            Destroy(shot.gameObject); // Destroy the projectile
-            if (hp > 0 && healthBarPrefab && !healthBarInstance)
-            {
-                healthBarInstance = (Transform)Instantiate(healthBarPrefab);
-            }
-            UpdateHealthBar();
+            Destroy(shot.gameObject);
         }
     }
 
-    // Use this for initialization
     void Start()
     {
         initialHp = hp;
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (healthBarInstance)
         {
             healthBarInstance.position = new Vector3(transform.position.x,
-                transform.position.y + 0.2f, transform.position.z);
+                transform.position.y + healthBarYOffset, transform.position.z);
         }
     }
 
