@@ -24,15 +24,15 @@ public class PlayerScript : MonoBehaviour
 
     void Update()
     {
-        // Rotate and move player:
+        // Move and rotate player:
         float inputX = Input.GetAxis("Horizontal");
         float inputY = Input.GetAxis("Vertical");
-
-        moveScript.direction = new Vector2(moveSpeed * inputX, moveSpeed * inputY);
+        var direction = new Vector2(inputX, inputY);
+        if (direction.magnitude > 1) direction.Normalize();
+        moveScript.direction = moveSpeed * direction;
 
         var currentPos = transform.position;
         var mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-
         var moveDirection = mousePos - currentPos;
         moveDirection.z = 0;
         moveDirection.Normalize();
@@ -64,7 +64,6 @@ public class PlayerScript : MonoBehaviour
             if (weaponScript && weaponScript.CanAttack)
             {
                 weaponScript.Attack(false);
-                // TODO sound fx
             }
         }  
     }

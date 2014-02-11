@@ -12,45 +12,6 @@ public class HealthScript : MonoBehaviour
     private int initialHp;
     private Transform healthBarInstance;
 
-    public void Damage(int damageCount)
-    {
-        hp -= damageCount;
-
-        if (hp <= 0)
-        {
-            if (isEnemy)
-            {
-                var enemy = transform.GetComponentInChildren<EnemyScript>();
-                if (enemy && enemy.deathSound)
-                {
-                    AudioSource.PlayClipAtPoint(enemy.deathSound, transform.position);   
-                }
-            }
-            Destroy(gameObject);
-        }
-        else if (healthBarPrefab && !healthBarInstance)
-        {
-            healthBarInstance = (Transform)Instantiate(healthBarPrefab);
-        }
-
-        UpdateHealthBar();
-    }
-
-    /// <summary>
-    /// Reduce health when collided with a shot.
-    /// </summary>
-    /// <param name="other"></param>
-    void OnTriggerEnter2D(Collider2D other)
-    {
-        ShotScript shot = other.gameObject.GetComponent<ShotScript>();
-        if (shot != null && shot.isEnemyShot != isEnemy)
-        {
-            AudioSource.PlayClipAtPoint(shot.shotHitSound, transform.position);
-            Damage(shot.damage);
-            Destroy(shot.gameObject);
-        }
-    }
-
     void Start()
     {
         initialHp = hp;
@@ -64,6 +25,39 @@ public class HealthScript : MonoBehaviour
                 transform.position.y + healthBarYOffset, transform.position.z);
         }
     }
+
+
+    public void Damage(int damageCount)
+    {
+        hp -= damageCount;
+
+        if (hp <= 0)
+        {
+            if (isEnemy)
+            {
+                var enemy = transform.GetComponentInChildren<EnemyScript>();
+                if (enemy && enemy.deathSound)
+                {
+                    AudioSource.PlayClipAtPoint(enemy.deathSound, transform.position);
+                }
+            }
+            Destroy(gameObject);
+        }
+        else if (healthBarPrefab && !healthBarInstance)
+        {
+            healthBarInstance = (Transform)Instantiate(healthBarPrefab);
+        }
+
+        UpdateHealthBar();
+    }
+
+
+    public void Heal(int healthRestored)
+    {
+        hp = Mathf.Min(initialHp, hp + healthRestored);
+        UpdateHealthBar();
+    }
+
 
     void UpdateHealthBar()
     {

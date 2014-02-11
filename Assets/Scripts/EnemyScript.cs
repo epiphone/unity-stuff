@@ -22,11 +22,18 @@ public class EnemyScript : MonoBehaviour
     /// </summary>
     public float attackCooldown = 1.0f;
 
+    /// <summary>
+    /// How much enemy is knocked back when hit by a projectile.
+    /// </summary>
+    public float shotKnockback = 10;
+
     public AudioClip hitPlayerSound;
     public AudioClip deathSound;
     public AudioClip startChasingSound;
 
     private MoveScript moveScript;
+    private HealthScript healthScript;
+    private CameraScript cameraScript;
     private Transform player;
     private Animator animator;
     private Vector3 playerLastSeenLocation;
@@ -35,12 +42,17 @@ public class EnemyScript : MonoBehaviour
     private bool canAttack = true;
     private bool isIdle = true;
     private bool hitWall = false;
+    private int wallLayerMask;
 
     void Awake()
     {
         moveScript = GetComponent<MoveScript>();
+        healthScript = GetComponent<HealthScript>();
+        var camera = Camera.main.gameObject;
+        cameraScript = camera.GetComponentInChildren<CameraScript>();
         player = GameObject.Find("player").transform;
         animator = GetComponent<Animator>();
+        wallLayerMask = 1 << LayerMask.NameToLayer("Wall");
     }
 
     void Start()
@@ -50,11 +62,19 @@ public class EnemyScript : MonoBehaviour
         StartCoroutine(SeekPlayer());
     }
 
+    void OnDestroy()
+    {
+        if (cameraScript != null)
+        {
+            cameraScript.Shake(new Vector3(0.8f, 0.8f, 0.8f));
+        }
+    }
+
     void Update()
     {
         if (isIdle)
         {
-
+            // TODO
         }
         else
         {
@@ -74,13 +94,26 @@ public class EnemyScript : MonoBehaviour
                 }
             }
 
+            // Rotate towards the movement direction.
             var moveDirection = moveScript.direction;
-            if (moveDirection != Vector2.zero)
-            {
-                float targetAngle = Mathf.Atan2(moveDirection.y, moveDirection.x) * Mathf.Rad2Deg;
-                transform.rotation = Quaternion.Slerp(transform.rotation,
-                    Quaternion.Euler(0, 0, targetAngle), turnSpeed * Time.deltaTime);
-            }
+            float targetAngle = Mathf.Atan2(moveDirection.y, moveDirection.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.Slerp(transform.rotation,
+                Quaternion.Euler(0, 0, targetAngle), turnSpeed * Time.deltaTime);
+        }
+    }
+
+    /// <summary>
+    /// Reduce health when collided with a shot.
+    /// </summary>
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        ShotScript shot = other.gameObject.GetComponent<ShotScript>();
+        if (shot != null && !shot.isEnemyShot)
+        {
+            AudioSource.PlayClipAtPoint(shot.shotHitSound, transform.position);
+            rigidbody2D.AddForce(shotKnockback * shot.rigidbody2D.velocity);
+            healthScript.Damage(shot.damage);
+            Destroy(shot.gameObject);
         }
     }
 
@@ -132,18 +165,12 @@ public class EnemyScript : MonoBehaviour
     /// </summary
     IEnumerator SeekPlayer()
     {
-        if (!Physics2D.Linecast(transform.position, player.position, 1 << LayerMask.NameToLayer("Wall")))
+        canSeePlayer = !Physics2D.Linecast(transform.position, player.position, wallLayerMask);
+        if (canSeePlayer)
         {
             playerLastSeenLocation = player.position;
             canSeePlayer = true;
-            if (isIdle)
-            {
-                stopIdle();
-            }
-        }
-        else
-        {
-            canSeePlayer = false;
+            if (isIdle) stopIdle();
         }
 
         var waitFor = canSeePlayer ? linecastIntervalWhenChasing : linecastInterval;
@@ -157,7 +184,6 @@ public class EnemyScript : MonoBehaviour
 
     void startIdle()
     {
-        Debug.Log("setting idle");
         animator.SetBool("isIdle", true);
         isIdle = true;
         StartCoroutine("IdleBehaviour");
@@ -165,7 +191,6 @@ public class EnemyScript : MonoBehaviour
 
     void stopIdle()
     {
-        Debug.Log("stopping idle");
         animator.SetBool("isIdle", false);
         AudioSource.PlayClipAtPoint(startChasingSound, transform.position);
         isIdle = false;
@@ -189,7 +214,6 @@ public class EnemyScript : MonoBehaviour
                 float currAngle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
                 float newAngle = Random.value * 180 + 90;
                 var rotation = Quaternion.FromToRotation(transform.position, target);
-
 
                 target = transform.position - direction * 2;
                 moveScript.MoveTowards(target, idleSpeed);

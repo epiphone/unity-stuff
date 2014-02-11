@@ -11,6 +11,7 @@ public class WallScript : MonoBehaviour
         ShotScript shot = coll.gameObject.GetComponent<ShotScript>();
         if (shot != null)
         {
+            AudioSource.PlayClipAtPoint(shot.shotHitSound, shot.transform.position);
             Destroy(shot.gameObject);
         }
     }

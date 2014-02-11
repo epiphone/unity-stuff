@@ -17,13 +17,22 @@ public class WeaponScript : MonoBehaviour
     public float shootingRate = 0.25f;
 
     public AudioClip weaponSound;
+    public AudioClip bonusStartSound;
+    public AudioClip bonusEndSound;
 
     private float shootCooldown;
     private ParticleSystem shellParticle;
 
+    // Enable cumulative weapon boosts
+    private float baseShootingRate;
+    private bool isBoosted = false;
+    private float additionalBoostSeconds;
+
+
     // Use this for initialization
     void Start()
     {
+        baseShootingRate = shootingRate;
         shootCooldown = 0;
         shellParticle = transform.GetComponentInChildren<ParticleSystem>();
     }
@@ -49,10 +58,7 @@ public class WeaponScript : MonoBehaviour
             shot.position = transform.position;
 
             var shotScript = shot.gameObject.GetComponent<ShotScript>();
-            if (shotScript != null)
-            {
-                shotScript.isEnemyShot = isEnemy;
-            }
+            shotScript.isEnemyShot = isEnemy;
 
             var moveScript = shot.gameObject.GetComponent<MoveScript>();
             if (moveScript != null)
@@ -61,7 +67,7 @@ public class WeaponScript : MonoBehaviour
             }
 
             // Jolt weapon sprite and emit a shell casing
-            iTween.PunchPosition(gameObject, -0.2f * Vector3.right, 0.95f * shootingRate);
+            iTween.PunchPosition(gameObject, -0.3f * Vector3.right, 0.8f * shootingRate);
             shellParticle.Emit(1);
         }
     }
@@ -73,5 +79,31 @@ public class WeaponScript : MonoBehaviour
         {
             return shootCooldown <= 0;
         }
+    }
+
+    public void GiveTemporaryBonus(float newShootingRate, float durationSeconds)
+    {
+        if (isBoosted)
+        {
+            additionalBoostSeconds += durationSeconds;
+        }
+        else
+        {
+            isBoosted = true;
+            StartCoroutine(BoostFirerate(newShootingRate, durationSeconds));
+        }
+    }
+
+    IEnumerator BoostFirerate(float newShootingRate, float durationSeconds)
+    {
+        AudioSource.PlayClipAtPoint(bonusStartSound, transform.position);
+        shootingRate = newShootingRate;
+        yield return new WaitForSeconds(durationSeconds);
+
+        yield return new WaitForSeconds(additionalBoostSeconds);
+        additionalBoostSeconds = 0;
+        
+        AudioSource.PlayClipAtPoint(bonusEndSound, transform.position);
+        shootingRate = baseShootingRate;
     }
 }
