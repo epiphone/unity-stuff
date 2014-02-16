@@ -16,6 +16,11 @@ public class WeaponScript : MonoBehaviour
     /// </summary>
     public float shootingRate = 0.25f;
 
+    /// <summary>
+    /// Maximum amount of random rotation in aim.
+    /// </summary>
+    public float aimDispersionDegrees = 10;
+
     public AudioClip weaponSound;
     public AudioClip bonusStartSound;
     public AudioClip bonusEndSound;
@@ -25,7 +30,6 @@ public class WeaponScript : MonoBehaviour
 
     // Enable cumulative weapon boosts
     private float baseShootingRate;
-    private bool isBoosted = false;
     private float additionalBoostSeconds;
 
 
@@ -63,7 +67,10 @@ public class WeaponScript : MonoBehaviour
             var moveScript = shot.gameObject.GetComponent<MoveScript>();
             if (moveScript != null)
             {
-                moveScript.direction = shotScript.speed * transform.right;
+                shot.rotation = transform.rotation;
+                shot.Rotate(0, 0, Random.Range(-aimDispersionDegrees/2, aimDispersionDegrees/2));
+                var direction = shot.rotation * Vector2.right;
+                moveScript.direction = shotScript.speed * direction;
             }
 
             // Jolt weapon sprite and emit a shell casing
@@ -83,13 +90,12 @@ public class WeaponScript : MonoBehaviour
 
     public void GiveTemporaryBonus(float newShootingRate, float durationSeconds)
     {
-        if (isBoosted)
+        if (shootingRate != baseShootingRate)
         {
             additionalBoostSeconds += durationSeconds;
         }
         else
         {
-            isBoosted = true;
             StartCoroutine(BoostFirerate(newShootingRate, durationSeconds));
         }
     }
